@@ -2,7 +2,7 @@ import json as j
 import random
 import sys
 
-# allow rewritting over lines instead of making new lines
+# allow rewritting over lines instead of making new lines4
 LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K' 
         
@@ -28,8 +28,28 @@ def generate_questions(categories, num=5):
             
             selected_questions.append(sorted(cat_questions, key= lambda x: int(x["value"].replace("$", "").replace(",", ""))))  
             
-        return selected_questions 
+        return selected_questions
 
+def get_selection(board):
+    
+    while True:
+        selection = input("Please select the next question: ").split(",")
+        
+        if len(selection) != 2:
+            for x in range(1):
+                print(LINE_UP, end=LINE_CLEAR)
+                continue
+        elif not (selection[0].isdigit() and selection[1].isdigit()):
+            for x in range(1):
+                print(LINE_UP, end=LINE_CLEAR)
+                continue
+        elif board[int(selection[1]) - 1][int(selection[0]) - 1] == "X":
+            for x in range(1):
+                print(LINE_UP, end=LINE_CLEAR)
+                continue
+        else:
+            return selection
+        
 def start_game():
     categories = generate_categories("")
     board = [[200, 200, 200, 200, 200], [400, 400, 400, 400, 400], [600, 600, 600, 600, 600], [800, 800, 800, 800, 800], [1000, 1000, 1000, 1000, 1000]]
@@ -38,7 +58,7 @@ def start_game():
     while True:
         display_board(board, categories)
         
-        selection = input().split(",")
+        selection = get_selection(board)
         selected_question = questions[int(selection[1]) - 1][int(selection[0]) - 1]
         
         display_question(selected_question)
