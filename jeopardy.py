@@ -1,7 +1,11 @@
 import json as j
 import random
 import sys
-    
+
+# allow rewritting over lines instead of making new lines
+LINE_UP = '\033[1A'
+LINE_CLEAR = '\x1b[2K' 
+        
 def generate_categories(round, num=5):
     with open(round+"jeopardy_cats.txt", "r", encoding="utf-8") as file:
         cats = file.readlines()
@@ -22,15 +26,35 @@ def generate_questions(categories, num=5):
             cat_questions = list(filter(lambda x: x["category"] == cat, all_questions))
             cat_questions = random.sample(cat_questions, num)
             
-            selected_questions.append(sorted(cat_questions, key= lambda x: int(x["value"].replace("$", ""))))  
+            selected_questions.append(sorted(cat_questions, key= lambda x: int(x["value"].replace("$", "").replace(",", ""))))  
             
         return selected_questions 
 
 def start_game():
     categories = generate_categories("")
     board = [[200, 200, 200, 200, 200], [400, 400, 400, 400, 400], [600, 600, 600, 600, 600], [800, 800, 800, 800, 800], [1000, 1000, 1000, 1000, 1000]]
-    display_board(board, categories)
+    questions = generate_questions(categories)
     
+    while True:
+        display_board(board, categories)
+        
+        selection = input().split(",")
+        selected_question = questions[int(selection[1]) - 1][int(selection[0]) - 1]
+        
+        display_question(selected_question)
+        board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
+
+def display_question(question):
+    
+        for x in range(7):
+           print(LINE_UP, end=LINE_CLEAR)
+           
+        print(question["question"])
+        input()
+        
+        for x in range(2):
+            print(LINE_UP, end=LINE_CLEAR)
+        
 def display_board(current_board, categories):
     cats = ""
     for cat in categories:
