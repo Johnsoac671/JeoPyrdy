@@ -61,6 +61,8 @@ def get_selection(board):
         
 def start_game():
     global PLAYER_TOTAL
+    questions_answered = 0
+    round = 0
     
     categories = generate_categories("")
     
@@ -73,6 +75,32 @@ def start_game():
     questions = generate_questions(categories)
     
     while True:
+        if questions_answered == 1:
+            if round == 0:
+                
+                print("Double Jeopardy!")
+                time.sleep(5)
+                clear_line(2)
+                
+                board = [[400, 400, 400, 400, 400],
+                        [800, 800, 800, 800, 800],
+                        [1200, 1200, 1200, 1200, 1200],
+                        [1600, 1600, 1600, 1600, 1600],
+                        [2000, 2000, 2000, 2000, 2000]]
+                
+                categories = generate_categories("double_")
+                questions = generate_questions(categories)
+            else:
+                
+                
+                board = ["FINAL JEOPARDY!"]
+                
+                categories = generate_categories("final_", 1)
+                questions = generate_questions(categories, 1)
+                
+            round += 1
+            questions_answered = 0
+            
         display_board(board, categories)
         
         print("Player Total: " + str(PLAYER_TOTAL))
@@ -82,6 +110,7 @@ def start_game():
         
         display_question(selected_question, board[int(selection[1]) - 1][int(selection[0]) - 1])
         board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
+        questions_answered += 1
 
 def display_question(question, value):
     
@@ -142,7 +171,8 @@ def get_player_input(question, value):
         player.play()
     
         wait_for_tts(player)
-        
+
+# TODO: crashes when attempting to display Final Jeopardy board.       
 def display_board(current_board, categories):
     cats = ""
     for cat in categories:
