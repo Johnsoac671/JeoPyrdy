@@ -1,10 +1,14 @@
 import json as j
 import random
-import sys
+from gtts import gTTS
+from io import BytesIO
+import vlc
 
-# allow rewritting over lines instead of making new lines4
+# allow rewritting over lines instead of making new lines
 LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K' 
+MP3 = BytesIO()
+
         
 def generate_categories(round, num=5):
     with open(round+"jeopardy_cats.txt", "r", encoding="utf-8") as file:
@@ -24,7 +28,10 @@ def generate_questions(categories, num=5):
         
         for cat in categories:
             cat_questions = list(filter(lambda x: x["category"] == cat, all_questions))
-            cat_questions = random.sample(cat_questions, num)
+            try:
+                cat_questions = random.sample(cat_questions, num)
+            except ValueError:
+                print("Error: too few questions for category: " + cat)
             
             selected_questions.append(sorted(cat_questions, key= lambda x: int(x["value"].replace("$", "").replace(",", ""))))  
             
@@ -36,44 +43,62 @@ def get_selection(board):
         selection = input("Please select the next question: ").split(",")
         
         if len(selection) != 2:
-            for x in range(1):
-                print(LINE_UP, end=LINE_CLEAR)
-                continue
+            clear_line(1)
+            continue
+        
         elif not (selection[0].isdigit() and selection[1].isdigit()):
-            for x in range(1):
-                print(LINE_UP, end=LINE_CLEAR)
-                continue
+            clear_line(1)
+            continue
+        
         elif board[int(selection[1]) - 1][int(selection[0]) - 1] == "X":
-            for x in range(1):
-                print(LINE_UP, end=LINE_CLEAR)
-                continue
+            clear_line(1)
+            continue
+        
         else:
             return selection
         
 def start_game():
     categories = generate_categories("")
-    board = [[200, 200, 200, 200, 200], [400, 400, 400, 400, 400], [600, 600, 600, 600, 600], [800, 800, 800, 800, 800], [1000, 1000, 1000, 1000, 1000]]
+    player_total = 0
+    
+    board = [[200, 200, 200, 200, 200],
+             [400, 400, 400, 400, 400],
+             [600, 600, 600, 600, 600],
+             [800, 800, 800, 800, 800],
+             [1000, 1000, 1000, 1000, 1000]]
+    
     questions = generate_questions(categories)
     
     while True:
         display_board(board, categories)
         
+        print("Player Total: " + str(player_total))
+        
         selection = get_selection(board)
-        selected_question = questions[int(selection[1]) - 1][int(selection[0]) - 1]
+        selected_question = questions[int(selection[0]) - 1][int(selection[1]) - 1]
         
         display_question(selected_question)
         board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
 
 def display_question(question):
     
-        for x in range(7):
-           print(LINE_UP, end=LINE_CLEAR)
-           
+        clear_line(8) 
         print(question["question"])
-        input()
         
-        for x in range(2):
-            print(LINE_UP, end=LINE_CLEAR)
+        tts = gTTS(question["question"], lang="en", tld="co.uk")
+        tts.save("question.mp3")
+        vlc.MediaPlayer("question.mp3").play()
+        
+        input()   
+        clear_line(2)  
+        print(question["answer"])
+        
+        tts = gTTS(question["answer"], lang="en", tld="co.uk")
+        tts.save("answer.mp3")
+        vlc.MediaPlayer("answer.mp3").play()
+        
+        input()
+        clear_line(2)
         
 def display_board(current_board, categories):
     cats = ""
@@ -116,7 +141,12 @@ def display_board(current_board, categories):
                         
                 board_row += "| "
         print(board_row)
+        
+def clear_line(num):
     
+    for x in range(num):
+        print(LINE_UP, end=LINE_CLEAR)  
+          
 start_game()
         
     
