@@ -3,11 +3,13 @@ import random
 from gtts import gTTS
 from io import BytesIO
 import vlc
+import time
 
 # allow rewritting over lines instead of making new lines
 LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K' 
 MP3 = BytesIO()
+PLAYER_TOTAL = 0
 
         
 def generate_categories(round, num=5):
@@ -58,8 +60,9 @@ def get_selection(board):
             return selection
         
 def start_game():
+    global PLAYER_TOTAL
+    
     categories = generate_categories("")
-    player_total = 0
     
     board = [[200, 200, 200, 200, 200],
              [400, 400, 400, 400, 400],
@@ -72,33 +75,73 @@ def start_game():
     while True:
         display_board(board, categories)
         
-        print("Player Total: " + str(player_total))
+        print("Player Total: " + str(PLAYER_TOTAL))
         
         selection = get_selection(board)
         selected_question = questions[int(selection[0]) - 1][int(selection[1]) - 1]
         
-        display_question(selected_question)
+        display_question(selected_question, board[int(selection[1]) - 1][int(selection[0]) - 1])
         board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
 
-def display_question(question):
+def display_question(question, value):
     
         clear_line(8) 
         print(question["question"])
         
         tts = gTTS(question["question"], lang="en", tld="co.uk")
         tts.save("question.mp3")
-        vlc.MediaPlayer("question.mp3").play()
+        player = vlc.MediaPlayer("question.mp3")
+        player.play()
+    
+        wait_for_tts(player)
         
-        input()   
-        clear_line(2)  
-        print(question["answer"])
+        get_player_input(question, value)   
+        clear_line(3)  
+
+def get_player_input(question, value):
+    global PLAYER_TOTAL
+    
+    correct_answer = question["answer"]
+    
+    player_answer = input("Your answer: ")
+    
+    tts = gTTS(player_answer, lang="en", tld="com")
+    tts.save("player_answer.mp3")
+    player = vlc.MediaPlayer("player_answer.mp3")
+    player.play()
+    
+    wait_for_tts(player)
+    
+    if player_answer.lower() == "what is " + correct_answer.lower():
+        print("That is correct!")
+        
+        tts = gTTS("That is correct!", lang="en", tld="co.uk")
+        tts.save("correct.mp3")
+        player = vlc.MediaPlayer("correct.mp3")
+        player.play()
+    
+        wait_for_tts(player)
+        
+        PLAYER_TOTAL += int(value)
+        
+        
+    else:
+        print("Sorry, that is incorrect. The correct answer was: "  + question["answer"])
+        
+        tts = gTTS("Sorry, that is incorrect. The correct answer was:", lang="en", tld="co.uk")
+        tts.save("incorrect.mp3")
+        player = vlc.MediaPlayer("incorrect.mp3")
+        player.play()
+    
+        wait_for_tts(player)
+        PLAYER_TOTAL -= int(value)
         
         tts = gTTS(question["answer"], lang="en", tld="co.uk")
         tts.save("answer.mp3")
-        vlc.MediaPlayer("answer.mp3").play()
-        
-        input()
-        clear_line(2)
+        player = vlc.MediaPlayer("answer.mp3")
+        player.play()
+    
+        wait_for_tts(player)
         
 def display_board(current_board, categories):
     cats = ""
@@ -146,6 +189,11 @@ def clear_line(num):
     
     for x in range(num):
         print(LINE_UP, end=LINE_CLEAR)  
+
+def wait_for_tts(player):
+    time.sleep(0.5)
+    duration = player.get_length() / 1000
+    time.sleep(duration)
           
 start_game()
         
