@@ -10,6 +10,8 @@ LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K' 
 MP3 = BytesIO()
 PLAYER_TOTAL = 0
+QUESTION_WORDS = ["what", "who", "when", "why", "how"]
+ARTICLES = ["is", "are", "were", "was"]
 
         
 def generate_categories(round, num=5):
@@ -35,8 +37,11 @@ def generate_questions(categories, num=5):
             except ValueError:
                 print("Error: too few questions for category: " + cat)
             
-            selected_questions.append(sorted(cat_questions, key= lambda x: int(x["value"].replace("$", "").replace(",", ""))))  
-            
+            if len(selected_questions) > 1:
+                selected_questions.append(sorted(cat_questions, key= lambda x: int(x["value"].replace("$", "").replace(",", ""))))
+            else: 
+                selected_questions.append(cat_questions)
+                
         return selected_questions
 
 def get_selection(board):
@@ -79,7 +84,12 @@ def start_game():
             if round == 0:
                 
                 print("Double Jeopardy!")
-                time.sleep(5)
+                tts = gTTS("Welcome to Double Jeopardy! In this round, question values are doubled.", lang="en", tld="co.uk")
+                tts.save("double_jep.mp3")
+                player = vlc.MediaPlayer("double_jep.mp3")
+                player.play()
+    
+                wait_for_tts(player)
                 clear_line(2)
                 
                 board = [[400, 400, 400, 400, 400],
@@ -140,8 +150,12 @@ def get_player_input(question, value):
     player.play()
     
     wait_for_tts(player)
-    
-    if player_answer.lower() == "what is " + correct_answer.lower():
+    # TODO: implement FINAL JEOPARDY! value system
+    # checks if players answer is correct and also it is in the form of a question, kinda messy, probably better way to do this
+    if (player_answer.lower().split()[0] in QUESTION_WORDS and player_answer.lower().split()[1] in ARTICLES
+        and player_answer == player_answer.lower().split()[0] + " " + player_answer.lower().split()[1] + " "
+        + correct_answer.lower()):
+        
         print("That is correct!")
         
         tts = gTTS("That is correct!", lang="en", tld="co.uk")
@@ -172,15 +186,20 @@ def get_player_input(question, value):
     
         wait_for_tts(player)
 
-# TODO: crashes when attempting to display Final Jeopardy board.       
+
 def display_board(current_board, categories):
     cats = ""
+    
     for cat in categories:
         cats += cat + " | "
         
     print(cats)
     for row in current_board:
         board_row = ""
+        
+        if row == "FINAL JEOPARDY!":
+            break
+        
         for col, box in enumerate(row):
             
             # Answered Questions
@@ -202,7 +221,6 @@ def display_board(current_board, categories):
                         board_row += " "
                 board_row += "| "
                 
-            
             # Questions with values equal to 3 digits    
             else:
                 for x in range(len(categories[col]) - 1):
@@ -214,12 +232,14 @@ def display_board(current_board, categories):
                         
                 board_row += "| "
         print(board_row)
-        
+
+# prints characters which clear previous lines        
 def clear_line(num):
     
     for x in range(num):
         print(LINE_UP, end=LINE_CLEAR)  
 
+# sleeps for length of tts message to avoid multiple messages speaking at once
 def wait_for_tts(player):
     time.sleep(0.5)
     duration = player.get_length() / 1000
