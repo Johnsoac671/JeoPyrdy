@@ -9,6 +9,9 @@ import time
 LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
+#disables tts
+DEBUG = False
+
 PLAYER_TOTAL = 0
 QUESTION_WORDS = ["what", "who", "where", "when", "why", "how"]
 ARTICLES = ["is", "are", "were", "was"]
@@ -16,12 +19,13 @@ ARTICLES = ["is", "are", "were", "was"]
 
 class Question:
 
-    def __init__(self, question, answer, value, category):
+    def __init__(self, question, answer, value, category, round):
         self.question = question
         self.answer = answer
         self.value = value
         self.category = category
         self.daily_double = False
+        self.round = round
 
     def __str__(self):
         return self.value
@@ -38,7 +42,7 @@ def generate_categories(round, num=5):
     return chosen
 
 
-def generate_questions(categories, num=5):
+def generate_questions(categories, num=5, round=""):
     with open("Questions.json", "r", encoding="utf-8") as json:
         all_questions = j.load(json)
 
@@ -47,6 +51,11 @@ def generate_questions(categories, num=5):
         for cat in categories:
             cat_questions = list(
                 filter(lambda x: x["category"] == cat, all_questions))
+            
+            if round == "final":
+                cat_questions = list(
+                filter(lambda x: x["round"] == "Final Jeopardy!", cat_questions))
+                
             try:
                 json_questions = random.sample(cat_questions, num)
 
@@ -54,7 +63,7 @@ def generate_questions(categories, num=5):
 
                 for quest in json_questions:
                     question = Question(
-                        quest["question"], quest["answer"], quest["value"], quest["category"])
+                        quest["question"], quest["answer"], quest["value"], quest["category"], quest["round"])
                     cat_questions.append(question)
 
             except ValueError:
@@ -111,7 +120,7 @@ def display_question(question, value):
 
         question.value = get_wager()
     
-    elif question.value == "null":
+    elif question.round == "Final Jeopardy!":
         
         question.value = get_wager()
 
@@ -242,21 +251,23 @@ def clear_line(num):
         print(LINE_UP, end=LINE_CLEAR)
 
 # sleeps for length of tts message to avoid multiple messages speaking at once
-
-
 def wait_for_tts(player):
-    time.sleep(0.5)
-    duration = player.get_length() / 1000
-    time.sleep(duration)
+    if player:
+        time.sleep(0.5)
+        duration = player.get_length() / 1000
+        time.sleep(duration)
 
 
 def tts_speak(text, filename, voice):
-    tts = gTTS(text, lang="en", tld=voice)
-    tts.save("audio/" + filename + ".mp3")
-    player = vlc.MediaPlayer("audio/" + filename + ".mp3")
-    player.play()
+    if not DEBUG:
+        tts = gTTS(text, lang="en", tld=voice)
+        tts.save("audio/" + filename + ".mp3")
+        player = vlc.MediaPlayer("audio/" + filename + ".mp3")
+        player.play()
 
-    return player
+        return player
+    else:
+        return None
 
 
 def start_game():
@@ -288,7 +299,7 @@ def start_game():
     clear_line(1)
 
     while True:
-        if questions_answered == 25:
+        if questions_answered == 1:
             if round == 0:
 
                 print("Double Jeopardy!")
@@ -332,7 +343,7 @@ def start_game():
                 board = ["FINAL JEOPARDY!"]
 
                 categories = generate_categories("final_", 1)
-                questions = generate_questions(categories, 1)
+                questions = generate_questions(categories, 1, "final")
 
             round += 1
             questions_answered = 0
@@ -347,8 +358,13 @@ def start_game():
 
         display_question(selected_question, board[int(
             selection[1]) - 1][int(selection[0]) - 1])
+        
+        if round == 2:
+            return
+        
         board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
         questions_answered += 1
 
 
 start_game()
+print("You won $" + str(PLAYER_TOTAL))
