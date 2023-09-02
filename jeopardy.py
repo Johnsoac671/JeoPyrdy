@@ -42,7 +42,7 @@ def generate_categories(round, num=5):
     return chosen
 
 
-def generate_questions(categories, num=5, round=""):
+def generate_questions(categories, num=5):
     with open("Questions.json", "r", encoding="utf-8") as json:
         all_questions = j.load(json)
 
@@ -124,13 +124,14 @@ def display_question(question, value):
         
         question.value = get_wager()
 
+    print(question.category)
     print(question.question)
 
     player = tts_speak(question.question, "question", "co.uk")
     wait_for_tts(player)
 
     get_player_input(question)
-    clear_line(3)
+    clear_line(4)
 
 
 def get_wager():
@@ -256,6 +257,9 @@ def wait_for_tts(player):
         time.sleep(0.5)
         duration = player.get_length() / 1000
         time.sleep(duration)
+    
+    elif DEBUG:
+        time.sleep(2)
 
 
 def tts_speak(text, filename, voice):
@@ -268,86 +272,44 @@ def tts_speak(text, filename, voice):
         return player
     else:
         return None
-
-
-def start_game():
+        
+def single_jeopardy():
     global PLAYER_TOTAL
     questions_answered = 0
-    round = 0
-
     categories = generate_categories("")
-
+    """
+    
+    SETTING UP BOARD
+    
+    """
     board = [[200, 200, 200, 200, 200],
              [400, 400, 400, 400, 400],
              [600, 600, 600, 600, 600],
              [800, 800, 800, 800, 800],
              [1000, 1000, 1000, 1000, 1000]]
-
+    
     questions = generate_questions(categories)
+    
     for category in questions:
         for index, question in enumerate(category):
             question.value = (index + 1) * 200
-
+            
     dd_question = random.choice(random.choice(questions))
     dd_question.daily_double = True
-
+    
+    """
+    
+    
+    
+    """
     player = tts_speak("    The categories are: " +
                        str(categories), "categories", "co.uk")
     print(categories)
     wait_for_tts(player)
 
     clear_line(1)
-
-    while True:
-        if questions_answered == 1:
-            if round == 0:
-
-                print("Double Jeopardy!")
-                player = tts_speak(
-                    "    Welcome to Double Jeopardy! In this round, question values are doubled.", "double_jep", "co.uk")
-                wait_for_tts(player)
-
-                clear_line(2)
-
-                board = [[400, 400, 400, 400, 400],
-                         [800, 800, 800, 800, 800],
-                         [1200, 1200, 1200, 1200, 1200],
-                         [1600, 1600, 1600, 1600, 1600],
-                         [2000, 2000, 2000, 2000, 2000]]
-
-                categories = generate_categories("double_")
-                questions = generate_questions(categories)
-
-                for category in questions:
-                    for index, question in enumerate(category):
-                        question.value = (index + 1) * 400
-
-                dd_question = random.choice(random.choice(questions))
-                dd_question.daily_double = True
-
-                dd_question_2 = random.choice(random.choice(questions))
-                
-                while(dd_question_2.daily_double):
-                    dd_question_2 = random.choice(random.choice(questions))
-                    
-                dd_question.daily_double = True
-
-                player = tts_speak("    The categories are: " +
-                                   str(categories), "categories", "co.uk")
-                print(categories)
-                wait_for_tts(player)
-
-                clear_line(1)
-
-            else:
-                board = ["FINAL JEOPARDY!"]
-
-                categories = generate_categories("final_", 1)
-                questions = generate_questions(categories, 1, "final")
-
-            round += 1
-            questions_answered = 0
-
+    
+    while questions_answered < 1:
         display_board(board, categories)
 
         print("Player Total: " + str(PLAYER_TOTAL))
@@ -359,12 +321,98 @@ def start_game():
         display_question(selected_question, board[int(
             selection[1]) - 1][int(selection[0]) - 1])
         
-        if round == 2:
-            return
+        board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
+        questions_answered += 1
+    
+    double_jeopardy()
+        
+def double_jeopardy():
+    global PLAYER_TOTAL
+    questions_answered = 0
+    
+    print("Double Jeopardy!")
+    player = tts_speak("    Welcome to Double Jeopardy! "
+                       "In this round, question values are doubled.", "double_jep", "co.uk")
+    
+    wait_for_tts(player)
+    clear_line(2)
+    """
+    
+    SETTING UP BOARD
+    
+    """
+    board = [[400, 400, 400, 400, 400],
+             [800, 800, 800, 800, 800],
+             [1200, 1200, 1200, 1200, 1200],
+             [1600, 1600, 1600, 1600, 1600],
+              [2000, 2000, 2000, 2000, 2000]]
+
+    categories = generate_categories("double_")
+    questions = generate_questions(categories)
+
+    for category in questions:
+        for index, question in enumerate(category):
+            question.value = (index + 1) * 400
+
+        dd_question = random.choice(random.choice(questions))
+        dd_question.daily_double = True
+
+        dd_question_2 = random.choice(random.choice(questions))
+                
+        while(dd_question_2.daily_double):
+            dd_question_2 = random.choice(random.choice(questions))
+                    
+            dd_question.daily_double = True
+    """
+    
+    
+    
+    """
+    player = tts_speak("    The categories are: " +
+                        str(categories), "categories", "co.uk")
+    print(categories)
+    wait_for_tts(player)
+
+    clear_line(1)
+        
+    while questions_answered < 1:
+        display_board(board, categories)
+
+        print("Player Total: " + str(PLAYER_TOTAL))
+
+        selection = get_selection(board, categories)
+        selected_question = questions[int(
+            selection[0]) - 1][int(selection[1]) - 1]
+
+        display_question(selected_question, board[int(
+            selection[1]) - 1][int(selection[0]) - 1])
         
         board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
         questions_answered += 1
+    
+    final_jeopardy()
+        
+def final_jeopardy():
+    board = ['FINAL JEOPARDY!']
+    
+    categories = generate_categories("final_", 1)
+    questions = generate_questions(categories, 1)
+    
+    player = tts_speak("    Our Final Jeopardy! category is: " +
+                        str(categories), "categories", "co.uk")
+    print(categories)
+    wait_for_tts(player)
+    clear_line(1)
+    
+    selection = get_selection(board, categories)
+    selected_question = questions[int(
+        selection[0]) - 1][int(selection[1]) - 1]
+
+    display_question(selected_question, board[int(
+        selection[1]) - 1][int(selection[0]) - 1])
+    
+    
 
 
-start_game()
+single_jeopardy()
 print("You won $" + str(PLAYER_TOTAL))
