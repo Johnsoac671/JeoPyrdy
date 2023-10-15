@@ -1,9 +1,11 @@
 import json as j
 import random
-from gtts import gTTS
-from io import BytesIO
-import vlc
 import time
+
+from gtts import gTTS
+import vlc
+import speech_recognition as sr
+
 
 # allow rewritting over lines instead of making new lines
 LINE_UP = '\033[1A'
@@ -170,13 +172,12 @@ def get_player_input(question):
 
     correct_answer = question.answer
 
-    player_answer = input("Your answer: ")
+    player_answer = get_voice_answer()
+    input()
 
     player = tts_speak(player_answer, "player_answer", "com")
     wait_for_tts(player)
 
-    # TODO: implement FINAL JEOPARDY! value system
-    # checks if players answer is correct and also it is in the form of a question, kinda messy, probably better way to do this
     if (player_answer.lower().split()[0] in QUESTION_WORDS and player_answer.lower().split()[1] in ARTICLES
         and player_answer == player_answer.lower().split()[0] + " " + player_answer.lower().split()[1] + " "
             + correct_answer.lower()):
@@ -197,6 +198,23 @@ def get_player_input(question):
 
         PLAYER_TOTAL -= int(question.value)
 
+def get_voice_answer():
+    recog = sr.Recognizer()
+    
+    with sr.Microphone() as source:
+        while True:
+            answer = recog.listen(source, timeout=5)
+            
+            try:
+                
+                text_answer = recog.recognize_google(answer)
+                print(text_answer)
+                return text_answer
+                
+            except sr.UnknownValueError:
+                print("Sorry, I couldn't understand what you said.")
+  
+        
 
 def display_board(current_board, categories):
     cats = ""
