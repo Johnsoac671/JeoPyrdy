@@ -6,6 +6,9 @@ from gtts import gTTS
 import vlc
 import speech_recognition as sr
 
+from transformers import AutoModel, AutoTokenizer
+import torch
+
 
 # allow rewritting over lines instead of making new lines
 LINE_UP = '\033[1A'
@@ -15,8 +18,15 @@ LINE_CLEAR = '\x1b[2K'
 DEBUG = False
 
 PLAYER_TOTAL = 0
-QUESTION_WORDS = ["what", "who", "where", "when", "why", "how"]
-ARTICLES = ["is", "are", "were", "was"]
+QUESTION_WORDS = set(["what", "who", "where", "when", "why", "how"])
+ARTICLES = set(["is", "are", "were", "was"])
+
+nlp_model = 'bert-base-uncased'
+
+TOKENIZER = AutoTokenizer.from_pretrained(nlp_model)
+MODEL = AutoModel.from_pretrained(nlp_model)
+ANSWER_THRESHOLD = 0.8
+
 
 
 class Question:
@@ -178,9 +188,7 @@ def get_player_input(question):
     player = tts_speak(player_answer, "player_answer", "com")
     wait_for_tts(player)
 
-    if (player_answer.lower().split()[0] in QUESTION_WORDS and player_answer.lower().split()[1] in ARTICLES
-        and player_answer == player_answer.lower().split()[0] + " " + player_answer.lower().split()[1] + " "
-            + correct_answer.lower()):
+    if check_answer(player_answer, correct_answer):
 
         print("That is correct!")
 
@@ -261,7 +269,39 @@ def display_board(current_board, categories):
 
                 board_row += "| "
         print(board_row)
+        
+"""
 
+UTILITY FUNCTIONs
+
+
+"""      
+        
+
+def tokenize_string(string):
+    return TOKENIZER(string, return_tensors="pt", padding=True, truncation=True)
+
+def check_answer(player, correct):
+    
+    player = player.split()
+    
+    if (player[0] not in QUESTION_WORDS or player[1] not in ARTICLES):
+        return False
+
+    player = "".join(player[3:])
+    
+    player_input = tokenize_string(player)
+    correct_answer = tokenize_string(correct)
+    
+    with torch.no_grad():
+        player_embed = MODEL(**player_input).last_hidden_state.mean(dim=1)
+        correct_embed = MODEL(**correct_answer).last_hidden_state.mean(dim=1)
+        
+    similarity = torch.nn.functional.cosine_similarity(player_embed, correct_embed)
+    
+    return similarity.item() >= ANSWER_THRESHOLD
+        
+    
 
 # prints characters which clear previous lines
 def clear_line(num):
