@@ -15,7 +15,7 @@ LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
 #disables tts
-DEBUG = False
+DEBUG = True
 
 PLAYER_TOTAL = 0
 QUESTION_WORDS = set(["what", "who", "where", "when", "why", "how"])
@@ -26,7 +26,6 @@ nlp_model = 'bert-base-uncased'
 TOKENIZER = AutoTokenizer.from_pretrained(nlp_model)
 MODEL = AutoModel.from_pretrained(nlp_model)
 ANSWER_THRESHOLD = 0.8
-
 
 
 class Question:
@@ -91,7 +90,6 @@ def generate_questions(categories, num=5):
 
 
 def get_selection(board, categories):
-
     while True:
         selection = input("Please select the next question: ").split(",")
 
@@ -117,7 +115,6 @@ def get_selection(board, categories):
 
 
 def display_question(question, value):
-
     clear_line(8)
 
     if question.daily_double:
@@ -147,88 +144,51 @@ def display_question(question, value):
 
 
 def get_wager():
-
     counter = 0
+    
     while True:
         counter += 1
         wager = input("Enter your wager: ")
-
-        if not wager.isdigit():
-            print("Error: Please enter an integer!")
-            continue
+        
+        if not wager.isdigit() or int(wager) < 0:
+            print("Error: Please enter a positive integer!")
         elif int(wager) > PLAYER_TOTAL:
-            if PLAYER_TOTAL > 1000:
-                print(
-                    "Error: Please enter a wager less than your total: " + str(PLAYER_TOTAL))
-                continue
-            elif int(wager) > 1000:
-                print("Error: Please enter a wager less than or equal to 1000! ")
-                continue
-        elif int(wager) < 0:
-            print("Error: Please enter a wager greater than or equal to 0! ")
-            continue
+            max_wager = min(PLAYER_TOTAL, 1000)
+            print(f"Error: Please enter a wager less than or equal to {max_wager}!")
+        else:
+            clear_line(counter)
+            player = tts_speak(str(wager), "wager_amount", "com")
+            wait_for_tts(player)
 
-        break
-
-    clear_line(counter)
-    player = tts_speak(str(wager), "wager_amount", "com")
-    wait_for_tts(player)
-
-    return int(wager)
+            return int(wager)  
 
 
 def get_player_input(question):
-    global PLAYER_TOTAL
-
-    correct_answer = question.answer
-
-    player_answer = get_voice_answer()
-    input()
-
+    
+    # player_answer = get_voice_answer()
+    player_answer = input("Please enter your answer: ")
+    
     player = tts_speak(player_answer, "player_answer", "com")
     wait_for_tts(player)
+    
+    correct_answer = question.answer
 
     if check_answer(player_answer, correct_answer):
-
-        print("That is correct!")
-
-        player = tts_speak("That is correct!", "correct", "co.uk")
-        wait_for_tts(player)
-
+        response = "That is correct!"
+        response_type = "correct"
         PLAYER_TOTAL += int(question.value)
-
     else:
-        print("Sorry, that is incorrect. The correct answer was: " + question.answer)
-
-        player = tts_speak("Sorry, that is incorrect. The correct answer was: " +
-                           question.answer, "incorrect", "co.uk")
-        wait_for_tts(player)
-
+        response = f"Sorry, that is incorrect. The correct answer was: {question.answer}"
+        response_type = "incorrect"
         PLAYER_TOTAL -= int(question.value)
 
-def get_voice_answer():
-    recog = sr.Recognizer()
+    print(response)
+    player = tts_speak(response, response_type, "co.uk")
+    wait_for_tts(player)
     
-    with sr.Microphone() as source:
-        while True:
-            answer = recog.listen(source, timeout=5)
-            
-            try:
-                
-                text_answer = recog.recognize_google(answer)
-                print(text_answer)
-                return text_answer
-                
-            except sr.UnknownValueError:
-                print("Sorry, I couldn't understand what you said.")
-  
-        
 
 def display_board(current_board, categories):
-    cats = ""
-
-    for cat in categories:
-        cats += cat + " | "
+    cats = " | ".join(categories)
 
     print(cats)
     for row in current_board:
@@ -275,11 +235,11 @@ def display_board(current_board, categories):
 UTILITY FUNCTIONs
 
 
-"""      
-        
+"""       
 
 def tokenize_string(string):
     return TOKENIZER(string, return_tensors="pt", padding=True, truncation=True)
+
 
 def check_answer(player, correct):
     
@@ -300,9 +260,24 @@ def check_answer(player, correct):
     similarity = torch.nn.functional.cosine_similarity(player_embed, correct_embed)
     
     return similarity.item() >= ANSWER_THRESHOLD
-        
-    
 
+
+def get_voice_answer():
+    recog = sr.Recognizer()
+    
+    with sr.Microphone() as source:
+        while True:
+            answer = recog.listen(source, timeout=5)
+            
+            try:
+                text_answer = recog.recognize_google(answer)
+                print(text_answer)
+                return text_answer
+                
+            except sr.UnknownValueError:
+                print("Sorry, I couldn't understand what you said.")
+          
+          
 # prints characters which clear previous lines
 def clear_line(num):
 
@@ -330,62 +305,51 @@ def tts_speak(text, filename, voice):
         return player
     else:
         return None
-        
+"""
+ROUNDS
+
+"""       
 def single_jeopardy():
-    global PLAYER_TOTAL
+    PLAYER_TOTAL = 0
     questions_answered = 0
+    
     categories = generate_categories("")
-    """
-    
-    SETTING UP BOARD
-    
-    """
     board = [[200, 200, 200, 200, 200],
-             [400, 400, 400, 400, 400],
-             [600, 600, 600, 600, 600],
-             [800, 800, 800, 800, 800],
-             [1000, 1000, 1000, 1000, 1000]]
-    
+            [400, 400, 400, 400, 400],
+            [600, 600, 600, 600, 600],
+            [800, 800, 800, 800, 800],
+            [1000, 1000, 1000, 1000, 1000]]
+
     questions = generate_questions(categories)
-    
+
     for category in questions:
         for index, question in enumerate(category):
             question.value = (index + 1) * 200
-            
+
     dd_question = random.choice(random.choice(questions))
     dd_question.daily_double = True
-    
-    """
-    
-    
-    
-    """
-    player = tts_speak("    The categories are: " +
-                       str(categories), "categories", "co.uk")
+
+    player = tts_speak(f"The categories are: {str(categories)}", "categories", "co.uk")
     print(categories)
     wait_for_tts(player)
 
     clear_line(1)
-    
+
     while questions_answered < 1:
         display_board(board, categories)
-
         print("Player Total: " + str(PLAYER_TOTAL))
 
         selection = get_selection(board, categories)
-        selected_question = questions[int(
-            selection[0]) - 1][int(selection[1]) - 1]
+        selected_question = questions[int(selection[0]) - 1][int(selection[1]) - 1]
 
-        display_question(selected_question, board[int(
-            selection[1]) - 1][int(selection[0]) - 1])
-        
+        display_question(selected_question, board[int(selection[1]) - 1][int(selection[0]) - 1])
+
         board[int(selection[1]) - 1][int(selection[0]) - 1] = "X"
         questions_answered += 1
-    
+
     double_jeopardy()
         
 def double_jeopardy():
-    global PLAYER_TOTAL
     questions_answered = 0
     
     print("Double Jeopardy!")
@@ -394,16 +358,12 @@ def double_jeopardy():
     
     wait_for_tts(player)
     clear_line(2)
-    """
-    
-    SETTING UP BOARD
-    
-    """
+
     board = [[400, 400, 400, 400, 400],
              [800, 800, 800, 800, 800],
              [1200, 1200, 1200, 1200, 1200],
              [1600, 1600, 1600, 1600, 1600],
-              [2000, 2000, 2000, 2000, 2000]]
+             [2000, 2000, 2000, 2000, 2000]]
 
     categories = generate_categories("double_")
     questions = generate_questions(categories)
@@ -419,15 +379,9 @@ def double_jeopardy():
                 
         while(dd_question_2.daily_double):
             dd_question_2 = random.choice(random.choice(questions))
-                    
             dd_question.daily_double = True
-    """
-    
-    
-    
-    """
-    player = tts_speak("    The categories are: " +
-                        str(categories), "categories", "co.uk")
+            
+    player = tts_speak(f"    The categories are: {str(categories)}", "categories", "co.uk")
     print(categories)
     wait_for_tts(player)
 
@@ -456,11 +410,9 @@ def final_jeopardy():
     categories = generate_categories("final_", 1)
     questions = generate_questions(categories, 1)
     
-    player = tts_speak("    Our Final Jeopardy! category is: " +
-                        str(categories), "categories", "co.uk")
+    player = tts_speak(f"    Our Final Jeopardy! category is: {str(categories)}", "categories", "co.uk")
     print(categories)
     wait_for_tts(player)
-    clear_line(1)
     
     selection = get_selection(board, categories)
     selected_question = questions[int(
@@ -469,8 +421,6 @@ def final_jeopardy():
     display_question(selected_question, board[int(
         selection[1]) - 1][int(selection[0]) - 1])
     
-    
-
 
 single_jeopardy()
-print("You won $" + str(PLAYER_TOTAL))
+print(f"You won ${str(PLAYER_TOTAL)}")
